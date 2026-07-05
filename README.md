@@ -125,11 +125,35 @@ into WSL2 - `~/.ssh` is shared with every distrobox box, so this makes
     ```
     ./scripts/04-setup-git-ssh-signing.sh
     ```
-    Picks a key from the agent (prompts if it offers more than one), sets
-    `gpg.format ssh`, `user.signingkey`, `commit.gpgsign true`, and
-    `gpg.ssh.allowedSignersFile` in your global `~/.gitconfig`, and records the
-    key against your git email in `~/.ssh/allowed_signers` (created if
-    missing).
+    Picks a key from the agent (prompts if it offers more than one, so note
+    which one you pick), sets `gpg.format ssh`, `user.signingkey`,
+    `commit.gpgsign true`, and `gpg.ssh.allowedSignersFile` in your global
+    `~/.gitconfig`, and records the key against your git email in
+    `~/.ssh/allowed_signers` (created if missing).
+17. Register that same public key with GitHub (or whichever remote host) - a
+    key living in Bitwarden's agent is useless to a remote until the remote
+    knows about it:
+    - Get the exact public key text again with `ssh-add -L` if you need it
+      (inside WSL or `devbox`) - it's whichever key you picked in step 16.
+    - GitHub -> **Settings -> SSH and GPG keys -> New SSH key**, paste it in
+      **twice**, once per "Key type":
+      - **Authentication Key** - lets you `git push`/`pull` over SSH.
+      - **Signing Key** - lets GitHub show your commits as "Verified". These
+        are tracked separately even though it's the same key - adding it only
+        as an Authentication Key is why a correctly-signed commit can still
+        show up as "Unverified" on GitHub.
+    - The commit author email (`git config user.email`, set in step 16) also
+      has to match a **verified email** on your GitHub account, or GitHub
+      still won't attribute the signature to you even with the key registered
+      correctly.
+    - Point each repo's remote at SSH instead of HTTPS, so `git push` uses the
+      agent instead of prompting for a username/Personal Access Token:
+      ```
+      git remote set-url origin git@github.com:<owner>/<repo>.git
+      ```
+    - Already-pushed commits don't need to be re-signed or re-pushed once the
+      key is registered - GitHub re-evaluates signatures against your current
+      key list and will flip existing commits to "Verified" retroactively.
 
 ## Notes
 
