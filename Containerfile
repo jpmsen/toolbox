@@ -1,4 +1,4 @@
-FROM ubuntu:26.04
+FROM ubuntu:24.04
 
 # Set to false to skip PowerShell 7 (it's the "optional" tool from the request)
 ARG INSTALL_PWSH=true
@@ -21,11 +21,10 @@ RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash
 
 # --- PowerShell 7 (optional) ---
 RUN if [ "$INSTALL_PWSH" = "true" ]; then \
-        curl -fsSL https://packages.microsoft.com/config/ubuntu/26.04/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb \
-        && dpkg -i /tmp/packages-microsoft-prod.deb \
-        && rm /tmp/packages-microsoft-prod.deb \
-        && apt-get update && apt-get install -y --no-install-recommends powershell \
-        && rm -rf /var/lib/apt/lists/*; \
+        wget -q https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb \
+        && dpkg -i packages-microsoft-prod.deb \
+        && rm packages-microsoft-prod.deb \
+        && apt-get update && apt-get install -y --no-install-recommends powershell; \
     fi
 
 # --- Powerlevel10k, installed system-wide ---
