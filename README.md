@@ -47,7 +47,7 @@ scripts here only ever pull.
 
 7. Open your WSL2 distro and go to the repo (it lives on the Windows side):
    ```
-   cd /mnt/c/Users/jeffs/Desktop/toolbox-docker
+   cd /mnt/c/Users/......
    chmod +x scripts/*.sh
    ```
 8. Install podman + distrobox:
@@ -80,14 +80,72 @@ scripts here only ever pull.
 Day to day, everything after this is just `distrobox enter devbox` from the
 WSL2 shell.
 
+## E. SSH agent forwarding from Bitwarden (optional)
+
+If you use Bitwarden desktop's SSH Agent feature to hold your keys, bridge it
+into WSL2 - `~/.ssh` is shared with every distrobox box, so this makes
+`ssh-add -l` work both in WSL and inside `devbox`.
+
+13. On Windows:
+    - Bitwarden desktop -> Settings -> SSH Agent -> enable it. Make sure
+      Bitwarden itself is **not** set to run elevated (shortcut/exe ->
+      Properties -> Compatibility tab -> "Run this program as an
+      administrator" should be unchecked, and check Properties -> Advanced...
+      on the shortcut too) - an elevated Bitwarden's named pipe silently
+      denies every non-elevated client, including a plain `ssh-add -l` and
+      WSL, with a permission error that has nothing to do with the bridge
+      itself. Fully quit Bitwarden from the tray and relaunch normally after
+      changing this.
+    - Disable the built-in Windows OpenSSH agent service - Bitwarden's agent
+      takes over the same named pipe (`\\.\pipe\openssh-ssh-agent`), so the
+      two will conflict if both are running:
+      ```
+      Set-Service ssh-agent -StartupType Disabled
+      Stop-Service ssh-agent
+      ```
+    - Install `npiperelay`:
+      ```
+      winget install jstarks.npiperelay
+      ```
+      This is a portable package - winget doesn't add it to `PATH`, but
+      `scripts/03-setup-ssh-agent-bridge.sh` searches the common winget/scoop
+      install locations for it automatically, so no `PATH` edits are needed.
+14. Back in WSL2:
+    ```
+    ./scripts/03-setup-ssh-agent-bridge.sh
+    ```
+    Installs `socat`, locates `npiperelay.exe`, writes a relay helper under
+    `~/.local/share/toolbox-bootstrap/`, and wires it into `~/.bashrc`. Open a
+    new WSL shell and confirm with `ssh-add -l`.
+15. Inside `devbox` (or any box), `ssh-add -l` should show the same keys with
+    no extra config - `02-bootstrap-dotfiles.sh`'s default `.zshrc` already
+    exports `SSH_AUTH_SOCK` when the relay socket exists.
+16. Sign commits with that key instead of GPG, per
+    [Bitwarden's SSH agent commit signing guide](https://bitwarden.com/help/ssh-agent/#ssh-agent-forwarding).
+    ```
+    ./scripts/04-setup-git-ssh-signing.sh
+    ```
+    Picks a key from the agent (prompts if it offers more than one), sets
+    `gpg.format ssh`, `user.signingkey`, `commit.gpgsign true`, and
+    `gpg.ssh.allowedSignersFile` in your global `~/.gitconfig`, and records the
+    key against your git email in `~/.ssh/allowed_signers` (created if
+    missing).
+
 ## Notes
 
-- `~/.azure`, `~/.ssh`, and `~/.zshrc` all live under `$HOME`, which distrobox
-  shares with the host - they persist across container recreation and image
-  updates without any extra config.
+- `~/.azure`, `~/.ssh`, `~/.zshrc`, and `~/.gitconfig` all live under `$HOME`,
+  which distrobox shares with the host - they persist across container
+  recreation and image updates without any extra config.
 - `scripts/01-create-devbox.sh` is safe to re-run; it skips container creation
   if `devbox` already exists and never overwrites an existing `~/.zshrc`. To
   rebuild from scratch: `distrobox rm devbox` then re-run the script.
 - To skip PowerShell 7, rebuild the image with `--build-arg INSTALL_PWSH=false`
   (only relevant if you're building locally for testing; the published image
   from CI includes it).
+- `scripts/03-setup-ssh-agent-bridge.sh` is optional and safe to re-run; it
+  only touches `~/.bashrc` once (guarded by a marker comment) and never
+  overwrites the relay helper's target path if you've customized it.
+- `scripts/04-setup-git-ssh-signing.sh` is optional and safe to re-run; it
+  only appends to `~/.ssh/allowed_signers` if the signer line isn't already
+  there, and re-running `git config --global` with the same values is a
+  no-op.

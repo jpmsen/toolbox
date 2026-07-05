@@ -13,6 +13,10 @@ source /opt/powerlevel10k/powerlevel10k.zsh-theme
 autoload -Uz compinit && compinit
 [ -f /etc/bash_completion.d/azure-cli ] && source /etc/bash_completion.d/azure-cli
 
+# Picked up from the WSL host's ssh-agent bridge (scripts/03-setup-ssh-agent-bridge.sh),
+# if it's been set up - ~/.ssh is shared with the host so the socket just works here too.
+[ -S "$HOME/.ssh/agent.sock" ] && export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
+
 alias tf=terraform
 EOF
     echo "==> Wrote ~/.zshrc"
