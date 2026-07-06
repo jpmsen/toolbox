@@ -8,85 +8,18 @@ The image is built by [.github/workflows/build-image.yml](.github/workflows/buil
 and published to `ghcr.io/jpmsen/toolbox`. Nobody builds it locally - the
 scripts here only ever pull.
 
-## A. Create the WSL2 distro (Windows host)
-
-1. Check what you already have:
-   ```
-   wsl --status
-   wsl -l -v
-   ```
-2. If you don't have a distro yet to host podman/distrobox, install one:
-   ```
-   wsl --install -d Ubuntu-24.04
-   ```
-   This is just the *host* distro - it doesn't need to match the Ubuntu
-   version used inside the container image.
-3. Launch it once (`wsl -d Ubuntu-24.04`) to finish first-run setup. You'll be
-   prompted for a Unix username/password.
-   - This account is local to the WSL2 virtual disk, not tied to
-     Intune/AD - it isn't really a security boundary (anyone with your
-     Windows session can `wsl -u root` regardless of this password), so
-     optimize for something quick to type since you'll use it for every
-     `sudo`, rather than for complexity.
-   - Username doesn't need to match your Windows username; it only
-     determines your `$HOME` path (`/home/<name>`).
-
-## B. Get the image building on GitHub
-
-4. Push to `main` to trigger the workflow:
-   ```
-   git add -A && git commit -m "..." && git push
-   ```
-5. Watch it build under the repo's **Actions** tab.
-6. **First run only**: go to `github.com/jpmsen?tab=packages` -> `toolbox`
-   package -> Package settings -> set visibility to **Public**. GHCR defaults
-   new packages to private regardless of the repo's visibility, so this is a
-   one-time manual step - skip it and `podman pull` will 403.
-
-## C. Inside WSL2: prereqs, pull, bootstrap
-
-7. Open your WSL2 distro and go to the repo (it lives on the Windows side):
-   ```
-   cd /mnt/c/Users/......
-   chmod +x scripts/*.sh
-   ```
-8. Install podman + distrobox:
-   ```
-   ./scripts/00-install-podman-distrobox.sh
-   ```
-9. Pull the image, create the container, bootstrap dotfiles:
-   ```
-   ./scripts/01-create-devbox.sh
-   ```
-   This pulls `ghcr.io/jpmsen/toolbox:latest`, creates a distrobox container
-   named `devbox`, writes a starter `~/.zshrc` (only if one doesn't already
-   exist - safe to re-run), and sets zsh as the box's default shell.
-10. Enter it and set up the prompt once:
-    ```
-    distrobox enter devbox
-    p10k configure
-    ```
-
-## D. Windows Terminal polish
-
-11. Install the recommended Nerd Font from a normal **Windows** PowerShell
-    window (not inside WSL):
-    ```
-    windows/install-meslo-nerd-font.ps1
-    ```
-12. Windows Terminal -> Settings -> the WSL2 distro's profile -> Appearance ->
+## A. Windows Terminal polish
+1. Install a [Nerd Font](https://www.nerdfonts.com/font-downloads) into your machine. Not sure which one to pick? Choose [Meslo](https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Meslo.zip)
+2. Windows Terminal -> Settings -> the WSL2 distro's profile -> Appearance ->
     Font face -> `MesloLGS NF`.
 
-Day to day, everything after this is just `distrobox enter devbox` from the
-WSL2 shell.
-
-## E. SSH agent forwarding from Bitwarden (optional)
+## B. SSH agent forwarding from Bitwarden (optional)
 
 If you use Bitwarden desktop's SSH Agent feature to hold your keys, bridge it
 into WSL2 - `~/.ssh` is shared with every distrobox box, so this makes
 `ssh-add -l` work both in WSL and inside `devbox`.
 
-13. On Windows:
+3. On Windows:
     - Bitwarden desktop -> Settings -> SSH Agent -> enable it. Make sure
       Bitwarden itself is **not** set to run elevated (shortcut/exe ->
       Properties -> Compatibility tab -> "Run this program as an
@@ -110,7 +43,67 @@ into WSL2 - `~/.ssh` is shared with every distrobox box, so this makes
       This is a portable package - winget doesn't add it to `PATH`, but
       `scripts/03-setup-ssh-agent-bridge.sh` searches the common winget/scoop
       install locations for it automatically, so no `PATH` edits are needed.
-14. Back in WSL2:
+4. Create an SSH key inside Bitwarden. Normally, Bitwarden itself creates an SSH key with the `ssh-ed25519` algorithm. But Azure DevOps does not support this algoritm. So you need to generate this key on your Windows host first, and then import it to Bitwarden.
+    - Add an RSA ssh key:
+      ```
+      ssh-keygen -t rsa -b 4096
+      ```
+    - You will be prompted a file location and password. Make sure to choose a strong password and remember this password (for example; in Bitwarden)
+    - Go to to specified file location and open it. You will see a file starting with `-----BEGIN OPENSSH PRIVATE KEY-----`, copy this entire file
+    - Open Bitwarden, press New -> SSH Key. In the private key section, press the upwards pointing array. You will be prompted a password; fill in the strong password you supplied before. Your key will then be succesfully imported. Inside the public key field, the text should start with `ssh-rsa`
+    - Make sure to add a field to store your strong password
+    - You can remove the SSH key on your local computer
+
+## C. Create the WSL2 distro (Windows host)
+
+5. Check what you already have:
+   ```
+   wsl --status
+   wsl -l -v
+   ```
+6. If you don't have a distro yet to host podman/distrobox, install one:
+   ```
+   wsl --install -d Ubuntu-24.04
+   ```
+   This is just the *host* distro - it doesn't need to match the Ubuntu
+   version used inside the container image.
+7. Launch it once (`wsl -d Ubuntu-24.04`) to finish first-run setup. You'll be
+   prompted for a Unix username/password.
+   - This account is local to the WSL2 virtual disk, not tied to
+     Intune/AD - it isn't really a security boundary (anyone with your
+     Windows session can `wsl -u root` regardless of this password), so
+     optimize for something quick to type since you'll use it for every
+     `sudo`, rather than for complexity.
+   - Username doesn't need to match your Windows username; it only
+     determines your `$HOME` path (`/home/<name>`).
+
+## C. Inside WSL2: prereqs, pull, bootstrap
+
+8. Open your WSL2 distro and go to the repo (it lives on the Windows side):
+   ```
+   cd /mnt/c/Users/......
+   chmod +x scripts/*.sh
+   ```
+9. Install podman + distrobox:
+   ```
+   ./scripts/00-install-podman-distrobox.sh
+   ```
+10. Pull the image, create the container, bootstrap dotfiles:
+   ```
+   ./scripts/01-create-devbox.sh
+   ```
+   This pulls `ghcr.io/jpmsen/toolbox:latest`, creates a distrobox container
+   named `devbox`, writes a starter `~/.zshrc` (only if one doesn't already
+   exist - safe to re-run), and sets zsh as the box's default shell.
+11. You will be automatically entered into the distrobox. Complete the steps prompted on your screen and when finished, exit the `devbox`:
+    ```
+    exit devbox
+    ```
+    You can also enter the devbox by using the following command
+    ```
+    distrobox enter devbox
+    ```
+12. Back in WSL2:
     ```
     ./scripts/03-setup-ssh-agent-bridge.sh
     ```
@@ -121,7 +114,7 @@ into WSL2 - `~/.ssh` is shared with every distrobox box, so this makes
     no extra config - `02-bootstrap-dotfiles.sh`'s default `.zshrc` already
     exports `SSH_AUTH_SOCK` when the relay socket exists.
 16. Sign commits with that key instead of GPG, per
-    [Bitwarden's SSH agent commit signing guide](https://bitwarden.com/help/ssh-agent/#ssh-agent-forwarding).
+    [Bitwarden's SSH agent commit signing guide](https://bitwarden.com/help/ssh-agent/#ssh-agent-forwarding). Back in WSL2:
     ```
     ./scripts/04-setup-git-ssh-signing.sh
     ```
