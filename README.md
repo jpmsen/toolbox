@@ -95,6 +95,7 @@ into WSL2 - `~/.ssh` is shared with every distrobox box, so this makes
    This pulls `ghcr.io/jpmsen/toolbox:latest`, creates a distrobox container
    named `devbox`, writes a starter `~/.zshrc` (only if one doesn't already
    exist - safe to re-run), and sets zsh as the box's default shell.
+   
 11. You will be automatically entered into the distrobox. Complete the steps prompted on your screen and when finished, exit the `devbox`:
     ```
     exit devbox
